@@ -1,0 +1,36 @@
+sudo: required
+language: generic
+
+services:
+  - docker
+
+before_install:
+  - docker build -t sunnykwok84/react-test -f ./client/Dockerfile.dev ./client
+
+script:
+  - docker run -e CI=true sunnykwok84/react-test npm test
+
+after_success:
+  - docker build -t sunnykwok84/multi-client ./client
+  - docker build -t sunnykwok84/multi-nginx ./nginx
+  - docker build -t sunnykwok84/multi-server ./server
+  - docker build -t sunnykwok84/multi-worker ./worker
+
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+
+  - docker push sunnykwok84/multi-client
+  - docker push sunnykwok84/multi-nginx
+  - docker push sunnykwok84/multi-server
+  - docker push sunnykwok84/multi-worker
+
+deploy:
+  provider: elasticbeanstalk
+  region: us-east-1
+  app: multi-docker
+  env: Multidocker-env
+  bucket_name: elasticbeanstalk-us-east-1-964580344214
+  bucket_path: docker-multi
+  on:
+    branch: master
+  access_key_id: $AWS_ACCESS_KEY
+  secret_access_key: "$AWS_SECRET_KEY"
